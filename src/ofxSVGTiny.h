@@ -19,6 +19,9 @@ public:
 	int getNumPath() { return paths.size(); }
 	ofPath& getPathAt(int n) { return *paths[n]; }
 
+  float getWidth() const;
+  float getHeight() const;
+
 private:
 
 	typedef ofPtr<ofPath> ofPathRef;
@@ -26,5 +29,8 @@ private:
 
 	void setupDiagram(struct svgtiny_diagram *diagram);
 	void setupShape(struct svgtiny_shape *shape);
+
+  float width;
+  float height;
 
 };
