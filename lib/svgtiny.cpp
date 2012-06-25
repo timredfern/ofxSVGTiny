@@ -8,14 +8,23 @@
 #include <assert.h>
 #include <math.h>
 #include <setjmp.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libxml/parser.h>
-#include <libxml/debugXML.h>
+//#include <libxml/parser.h>
+//#include <libxml/debugXML.h>
 #include "svgtiny.h"
 #include "svgtiny_internal.h"
+
+using namespace std;
+
+#ifdef _MSC_VER
+long lroundf (float x) {
+	long xl = (long) x;
+	return x - xl > .5 ? xl + 1 : xl;
+}  
+#endif
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846
@@ -23,30 +32,30 @@
 
 #define KAPPA		0.5522847498
 
-static svgtiny_code svgtiny_parse_svg(xmlNode *svg,
+static svgtiny_code svgtiny_parse_svg(Poco::XML::Element *svg,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_path(xmlNode *path,
+static svgtiny_code svgtiny_parse_path(Poco::XML::Element *path,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_rect(xmlNode *rect,
+static svgtiny_code svgtiny_parse_rect(Poco::XML::Element *rect,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_circle(xmlNode *circle,
+static svgtiny_code svgtiny_parse_circle(Poco::XML::Element *circle,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_ellipse(xmlNode *ellipse,
+static svgtiny_code svgtiny_parse_ellipse(Poco::XML::Element *ellipse,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_line(xmlNode *line,
+static svgtiny_code svgtiny_parse_line(Poco::XML::Element *line,
 		struct svgtiny_parse_state state);
-static svgtiny_code svgtiny_parse_poly(xmlNode *poly,
+static svgtiny_code svgtiny_parse_poly(Poco::XML::Element *poly,
 		struct svgtiny_parse_state state, bool polygon);
-static svgtiny_code svgtiny_parse_text(xmlNode *text,
+static svgtiny_code svgtiny_parse_text(Poco::XML::Element *text,
 		struct svgtiny_parse_state state);
-static void svgtiny_parse_position_attributes(const xmlNode *node,
+static void svgtiny_parse_position_attributes(const Poco::XML::Element *node,
 		const struct svgtiny_parse_state state,
 		float *x, float *y, float *width, float *height);
-static void svgtiny_parse_paint_attributes(const xmlNode *node,
+static void svgtiny_parse_paint_attributes(const Poco::XML::Element *node,
 		struct svgtiny_parse_state *state);
-static void svgtiny_parse_font_attributes(const xmlNode *node,
+static void svgtiny_parse_font_attributes(const Poco::XML::Element *node,
 		struct svgtiny_parse_state *state);
-static void svgtiny_parse_transform_attributes(xmlNode *node,
+static void svgtiny_parse_transform_attributes(Poco::XML::Element *node,
 		struct svgtiny_parse_state *state);
 static svgtiny_code svgtiny_add_path(float *p, unsigned int n,
 		struct svgtiny_parse_state *state);
@@ -60,7 +69,7 @@ struct svgtiny_diagram *svgtiny_create(void)
 {
 	struct svgtiny_diagram *diagram;
 
-	diagram = malloc(sizeof *diagram);
+	diagram = (svgtiny_diagram *) malloc(sizeof *diagram);
 	if (!diagram)
 		return 0;
 
@@ -81,8 +90,10 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 		const char *buffer, size_t size, const char *url,
 		int viewport_width, int viewport_height)
 {
-	xmlDoc *document;
-	xmlNode *svg;
+	
+    Poco::XML::Document *document;
+	//Poco::XML::Element *svg;
+    Poco::XML::Element *svg;
 	struct svgtiny_parse_state state;
 	float x, y, width, height;
 	svgtiny_code code;
@@ -90,20 +101,17 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 	assert(diagram);
 	assert(buffer);
 	assert(url);
+    
+    std::string str(buffer);
+    
+    Poco::XML::DOMParser parser;
+    document = parser.parseString(str);
 
-	/* parse XML to tree */
-	document = xmlReadMemory(buffer, size, url, 0,
-			XML_PARSE_NONET | XML_PARSE_COMPACT);
-	if (!document)
-		return svgtiny_LIBXML_ERROR;
-
-	/*xmlDebugDumpDocument(stderr, document);*/
-
-	/* find root <svg> element */
-	svg = xmlDocGetRootElement(document);
+    svg = document->documentElement();
+    
 	if (!svg)
 		return svgtiny_NOT_SVG;
-	if (strcmp((const char *) svg->name, "svg") != 0)
+    if (svg->localName().compare("svg") != 0)
 		return svgtiny_NOT_SVG;
 
 	/* get graphic dimensions */
@@ -135,7 +143,8 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 	code = svgtiny_parse_svg(svg, state);
 
 	/* free XML tree */
-	xmlFreeDoc(document);
+	// no need to free, since TiXmlDocument handles itself
+	//xmlFreeDoc(document);
 
 	return code;
 }
@@ -145,25 +154,26 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
  * Parse a <svg> or <g> element node.
  */
 
-svgtiny_code svgtiny_parse_svg(xmlNode *svg,
+svgtiny_code svgtiny_parse_svg(Poco::XML::Element *svg,
 		struct svgtiny_parse_state state)
 {
 	float x, y, width, height;
-	xmlAttr *view_box;
-	xmlNode *child;
+	Poco::XML::Attr *view_box;
+	Poco::XML::Element *child;
 
 	svgtiny_parse_position_attributes(svg, state, &x, &y, &width, &height);
 	svgtiny_parse_paint_attributes(svg, &state);
 	svgtiny_parse_font_attributes(svg, &state);
-
-	/* parse viewBox */
-	view_box = xmlHasProp(svg, (const xmlChar *) "viewBox");
+    
+    view_box = svg->getAttributeNode("viewBox");
+    
 	if (view_box) {
-		const char *s = (const char *) view_box->children->content;
+		//const char *s = (const char *) view_box->children->content;
+        const char *s = (const char *) view_box->getValue().c_str();
 		float min_x, min_y, vwidth, vheight;
-		if (sscanf(s, "%f,%f,%f,%f",
+		if (sscanf(s, " %f,%f,%f,%f",
 				&min_x, &min_y, &vwidth, &vheight) == 4 ||
-				sscanf(s, "%f %f %f %f",
+				sscanf(s, " %f %f %f %f",
 				&min_x, &min_y, &vwidth, &vheight) == 4) {
 			state.ctm.a = (float) state.viewport_width / vwidth;
 			state.ctm.d = (float) state.viewport_height / vheight;
@@ -174,11 +184,28 @@ svgtiny_code svgtiny_parse_svg(xmlNode *svg,
 
 	svgtiny_parse_transform_attributes(svg, &state);
 
-	for (child = svg->children; child; child = child->next) {
-		svgtiny_code code = svgtiny_OK;
 
-		if (child->type == XML_ELEMENT_NODE) {
-			const char *name = (const char *) child->name;
+    // this is how this should work, but it doesn't
+    //Poco::XML::NodeIterator it(svg, Poco::XML::NodeFilter::SHOW_ELEMENT | Poco::XML::NodeFilter::SHOW_TEXT);
+    //Poco::XML::Node* pNode = it.nextNode();
+    //while (pNode)
+    
+    
+    // Note: this should be using the NodeIterator, but it doesn't seem to work as advertised when using
+    // a Node as the root for the iterator constructor. Really weird.
+    Poco::XML::ChildNodesList *cnl = ( Poco::XML::ChildNodesList *) svg->childNodes();
+    int i  = 0, l = cnl->length();
+    while( i < l )
+    {
+    
+		svgtiny_code code = svgtiny_OK;
+        
+        child = (Poco::XML::Element *) cnl->item(i);
+
+        // I think this can't happen?
+		if (child->nodeType() == Poco::XML::Element::ELEMENT_NODE) {
+			const char *name = (const char *) child->localName().c_str();
+            
 			if (strcmp(name, "svg") == 0)
 				code = svgtiny_parse_svg(child, state);
 			else if (strcmp(name, "g") == 0)
@@ -199,14 +226,24 @@ svgtiny_code svgtiny_parse_svg(xmlNode *svg,
 				code = svgtiny_parse_poly(child, state, false);
 			else if (strcmp(name, "polygon") == 0)
 				code = svgtiny_parse_poly(child, state, true);
-			else if (strcmp(name, "text") == 0)
+            else if (strcmp(name, "text") == 0)
+				code = svgtiny_parse_text(child, state);
+            
+            // not sure about this
+        } else if (child->nodeType() == Poco::XML::Element::TEXT_NODE) {
+            
+            const char *name = (const char *) child->localName().c_str();
+            
+			if (strcmp(name, "text") == 0)
 				code = svgtiny_parse_text(child, state);
 		}
+        
+        //pNode = it.nextNode();
+        i++;
 
 		if (code != svgtiny_OK)
 			return code;
 	}
-
 	return svgtiny_OK;
 }
 
@@ -218,7 +255,7 @@ svgtiny_code svgtiny_parse_svg(xmlNode *svg,
  * http://www.w3.org/TR/SVG11/paths#PathElement
  */
 
-svgtiny_code svgtiny_parse_path(xmlNode *path,
+svgtiny_code svgtiny_parse_path(Poco::XML::Element *path,
 		struct svgtiny_parse_state state)
 {
 	char *s, *path_d;
@@ -232,15 +269,19 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 	svgtiny_parse_transform_attributes(path, &state);
 
 	/* read d attribute */
-	s = path_d = (char *) xmlGetProp(path, (const xmlChar *) "d");
+	//s = path_d = (char *) xmlGetProp(path, (const xmlChar *) "d");
+    //s = path_d = (char *) path->Attribute("d");
+	const Poco::XML::XMLString& attrString = path->getAttribute("d");
+	s = path_d = (char *) attrString.c_str();
+	char* send = s + strlen(s);
 	if (!s) {
-		state.diagram->error_line = path->line;
+		//state.diagram->error_line = path->line; // todo: what was this doing?
 		state.diagram->error_message = "path: missing d attribute";
 		return svgtiny_SVG_ERROR;
 	}
 
 	/* allocate space for path: it will never have more elements than d */
-	p = malloc(sizeof p[0] * strlen(s));
+	p = (float*) malloc(sizeof p[0] * strlen(s));
 	if (!p)
 		return svgtiny_OUT_OF_MEMORY;
 
@@ -249,14 +290,14 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 		if (s[i] == ',')
 			s[i] = ' ';
 	i = 0;
-	while (*s) {
+	while (s < send) {
 		char command[2];
 		int plot_command;
 		float x, y, x1, y1, x2, y2, rx, ry, rotation, large_arc, sweep;
 		int n;
 
 		/* moveto (M, m), lineto (L, l) (2 arguments) */
-		if (sscanf(s, " %1[MmLl] %f %f %n", command, &x, &y, &n) == 3) {
+		if (sscanf(s, " %1[MmLl] %f %f%n", command, &x, &y, &n) == 3) {
 			/*LOG(("moveto or lineto"));*/
 			if (*command == 'M' || *command == 'm')
 				plot_command = svgtiny_PATH_MOVE;
@@ -274,16 +315,16 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 						= y;
 				s += n;
 				plot_command = svgtiny_PATH_LINE;
-			} while (sscanf(s, "%f %f %n", &x, &y, &n) == 2);
+			} while (sscanf(s, " %f %f%n", &x, &y, &n) == 2);
 
 		/* closepath (Z, z) (no arguments) */
-		} else if (sscanf(s, " %1[Zz] %n", command, &n) == 1) {
+		} else if (sscanf(s, " %1[Zz]%n", command, &n) == 1) {
 			/*LOG(("closepath"));*/
 			p[i++] = svgtiny_PATH_CLOSE;
 			s += n;
 
 		/* horizontal lineto (H, h) (1 argument) */
-		} else if (sscanf(s, " %1[Hh] %f %n", command, &x, &n) == 2) {
+		} else if (sscanf(s, " %1[Hh] %f%n", command, &x, &n) == 2) {
 			/*LOG(("horizontal lineto"));*/
 			do {
 				p[i++] = svgtiny_PATH_LINE;
@@ -293,10 +334,10 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 						= x;
 				p[i++] = last_cubic_y = last_quad_y = last_y;
 				s += n;
-			} while (sscanf(s, "%f %n", &x, &n) == 1);
+			} while (sscanf(s, " %f%n", &x, &n) == 1);
 
 		/* vertical lineto (V, v) (1 argument) */
-		} else if (sscanf(s, " %1[Vv] %f %n", command, &y, &n) == 2) {
+		} else if (sscanf(s, " %1[Vv] %f%n", command, &y, &n) == 2) {
 			/*LOG(("vertical lineto"));*/
 			do {
 				p[i++] = svgtiny_PATH_LINE;
@@ -306,10 +347,10 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_cubic_y = last_quad_y = last_y
 						= y;
 				s += n;
-			} while (sscanf(s, "%f %n", &x, &n) == 1);
+			} while (sscanf(s, " %f%n", &x, &n) == 1);
 
 		/* curveto (C, c) (6 arguments) */
-		} else if (sscanf(s, " %1[Cc] %f %f %f %f %f %f %n", command,
+		} else if (sscanf(s, " %1[Cc] %f %f %f %f %f %f%n", command,
 				&x1, &y1, &x2, &y2, &x, &y, &n) == 7) {
 			/*LOG(("curveto"));*/
 			do {
@@ -329,11 +370,11 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_quad_x = last_x = x;
 				p[i++] = last_quad_y = last_y = y;
 				s += n;
-			} while (sscanf(s, "%f %f %f %f %f %f %n",
+			} while (sscanf(s, " %f %f %f %f %f %f%n",
 					&x1, &y1, &x2, &y2, &x, &y, &n) == 6);
 
 		/* shorthand/smooth curveto (S, s) (4 arguments) */
-		} else if (sscanf(s, " %1[Ss] %f %f %f %f %n", command,
+		} else if (sscanf(s, " %1[Ss] %f %f %f %f%n", command,
 				&x2, &y2, &x, &y, &n) == 5) {
 			/*LOG(("shorthand/smooth curveto"));*/
 			do {
@@ -353,11 +394,11 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_quad_x = last_x = x;
 				p[i++] = last_quad_y = last_y = y;
 				s += n;
-			} while (sscanf(s, "%f %f %f %f %n",
+			} while (sscanf(s, " %f %f %f %f%n",
 					&x2, &y2, &x, &y, &n) == 4);
 
 		/* quadratic Bezier curveto (Q, q) (4 arguments) */
-		} else if (sscanf(s, " %1[Qq] %f %f %f %f %n", command,
+		} else if (sscanf(s, " %1[Qq] %f %f %f %f%n", command,
 				&x1, &y1, &x, &y, &n) == 5) {
 			/*LOG(("quadratic Bezier curveto"));*/
 			do {
@@ -377,12 +418,12 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_cubic_x = last_x = x;
 				p[i++] = last_cubic_y = last_y = y;
 				s += n;
-			} while (sscanf(s, "%f %f %f %f %n",
+			} while (sscanf(s, " %f %f %f %f%n",
 					&x1, &y1, &x, &y, &n) == 4);
 
 		/* shorthand/smooth quadratic Bezier curveto (T, t)
 		   (2 arguments) */
-		} else if (sscanf(s, " %1[Tt] %f %f %n", command,
+		} else if (sscanf(s, " %1[Tt] %f %f%n", command,
 				&x, &y, &n) == 3) {
 			/*LOG(("shorthand/smooth quadratic Bezier curveto"));*/
 			do {
@@ -404,11 +445,11 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_cubic_x = last_x = x;
 				p[i++] = last_cubic_y = last_y = y;
 				s += n;
-			} while (sscanf(s, "%f %f %n",
+			} while (sscanf(s, " %f %f%n",
 					&x, &y, &n) == 2);
 
 		/* elliptical arc (A, a) (7 arguments) */
-		} else if (sscanf(s, " %1[Aa] %f %f %f %f %f %f %f %n", command,
+		} else if (sscanf(s, " %1[Aa] %f %f %f %f %f %f %f%n", command,
 				&rx, &ry, &rotation, &large_arc, &sweep,
 				&x, &y, &n) == 8) {
 			do {
@@ -422,17 +463,24 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
 				p[i++] = last_cubic_y = last_quad_y = last_y
 						= y;
 				s += n;
-			} while (sscanf(s, "%f %f %f %f %f %f %f %n",
+			} while (sscanf(s, " %f %f %f %f %f %f %f%n",
 				&rx, &ry, &rotation, &large_arc, &sweep,
 				&x, &y, &n) == 7);
 
+		} else if (sscanf(s, " %n", &n) || n) {
+			// consume whitespace at the end of a line
+			s += n;
 		} else {
 			fprintf(stderr, "parse failed at \"%s\"\n", s);
 			break;
 		}
 	}
 
-	xmlFree(path_d);
+	// no need to clear path_d with tinyxml
+	//xmlFree(path_d);
+    if(path_d) {
+        //delete path_d;
+    }
 
 	if (i <= 4) {
 		/* no real segments in path */
@@ -450,7 +498,7 @@ svgtiny_code svgtiny_parse_path(xmlNode *path,
  * http://www.w3.org/TR/SVG11/shapes#RectElement
  */
 
-svgtiny_code svgtiny_parse_rect(xmlNode *rect,
+svgtiny_code svgtiny_parse_rect(Poco::XML::Element *rect,
 		struct svgtiny_parse_state state)
 {
 	float x, y, width, height;
@@ -461,7 +509,7 @@ svgtiny_code svgtiny_parse_rect(xmlNode *rect,
 	svgtiny_parse_paint_attributes(rect, &state);
 	svgtiny_parse_transform_attributes(rect, &state);
 
-	p = malloc(13 * sizeof p[0]);
+	p =(float *) malloc(13 * sizeof p[0]);
 	if (!p)
 		return svgtiny_OUT_OF_MEMORY;
 
@@ -487,16 +535,29 @@ svgtiny_code svgtiny_parse_rect(xmlNode *rect,
  * Parse a <circle> element node.
  */
 
-svgtiny_code svgtiny_parse_circle(xmlNode *circle,
+svgtiny_code svgtiny_parse_circle(Poco::XML::Element *circle,
 		struct svgtiny_parse_state state)
 {
 	float x = 0, y = 0, r = -1;
 	float *p;
-	xmlAttr *attr;
+	//xmlAttr *attr;
+    Poco::XML::Attr *attr;
 
-	for (attr = circle->properties; attr; attr = attr->next) {
-		const char *name = (const char *) attr->name;
-		const char *content = (const char *) attr->children->content;
+	//for (attr = circle->properties; attr; attr = attr->next) {
+    //for( attr = circle->FirstAttribute(); attr; attr = attr->Next() ) {
+    
+    Poco::XML::NamedNodeMap *map = circle->attributes();
+    for( int i = 0; i < map->length(); i++ ) {
+    
+		//const char *name = (const char *) attr->name;
+		//const char *content = (const char *) attr->children->content;
+        
+        //const char *name = (const char *) attr->Name();
+		//const char *content = (const char *) attr->Value();
+        
+        const char *name = (const char *) map->item(i)->localName().c_str();
+		const char *content = (const char *) map->item(i)->getNodeValue().c_str();
+        
 		if (strcmp(name, "cx") == 0)
 			x = svgtiny_parse_length(content,
 					state.viewport_width, state);
@@ -511,14 +572,16 @@ svgtiny_code svgtiny_parse_circle(xmlNode *circle,
 	svgtiny_parse_transform_attributes(circle, &state);
 
 	if (r < 0) {
-		state.diagram->error_line = circle->line;
+        // how to figure?
+		//state.diagram->error_line = circle->line; // todo
+        
 		state.diagram->error_message = "circle: r missing or negative";
 		return svgtiny_SVG_ERROR;
 	}
 	if (r == 0)
 		return svgtiny_OK;
 
-	p = malloc(32 * sizeof p[0]);
+	p = (float *) malloc(32 * sizeof p[0]);
 	if (!p)
 		return svgtiny_OUT_OF_MEMORY;
 
@@ -563,16 +626,28 @@ svgtiny_code svgtiny_parse_circle(xmlNode *circle,
  * Parse an <ellipse> element node.
  */
 
-svgtiny_code svgtiny_parse_ellipse(xmlNode *ellipse,
+svgtiny_code svgtiny_parse_ellipse(Poco::XML::Element *ellipse,
 		struct svgtiny_parse_state state)
 {
 	float x = 0, y = 0, rx = -1, ry = -1;
 	float *p;
-	xmlAttr *attr;
+	Poco::XML::Attr *attr;
 
-	for (attr = ellipse->properties; attr; attr = attr->next) {
-		const char *name = (const char *) attr->name;
-		const char *content = (const char *) attr->children->content;
+	//for (attr = ellipse->properties; attr; attr = attr->next) {
+    //for( attr = ellipse->FirstAttribute(); attr; attr = attr->Next() ) {
+    
+    Poco::XML::NamedNodeMap *map = ellipse->attributes();
+    for( int i = 0; i < map->length(); i++ ) {
+    
+		//const char *name = (const char *) attr->name;
+		//const char *content = (const char *) attr->children->content;
+        
+        //const char *name = (const char *) attr->Name();
+		//const char *content = (const char *) attr->Value();
+        
+        const char *name = (const char *) map->item(i)->localName().c_str();
+		const char *content = (const char *) map->item(i)->getNodeValue().c_str();
+        
 		if (strcmp(name, "cx") == 0)
 			x = svgtiny_parse_length(content,
 					state.viewport_width, state);
@@ -590,7 +665,7 @@ svgtiny_code svgtiny_parse_ellipse(xmlNode *ellipse,
 	svgtiny_parse_transform_attributes(ellipse, &state);
 
 	if (rx < 0 || ry < 0) {
-		state.diagram->error_line = ellipse->line;
+		//state.diagram->error_line = ellipse->line; // todo
 		state.diagram->error_message = "ellipse: rx or ry missing "
 				"or negative";
 		return svgtiny_SVG_ERROR;
@@ -598,7 +673,7 @@ svgtiny_code svgtiny_parse_ellipse(xmlNode *ellipse,
 	if (rx == 0 || ry == 0)
 		return svgtiny_OK;
 
-	p = malloc(32 * sizeof p[0]);
+	p = (float*) malloc(32 * sizeof p[0]);
 	if (!p)
 		return svgtiny_OUT_OF_MEMORY;
 
@@ -643,16 +718,29 @@ svgtiny_code svgtiny_parse_ellipse(xmlNode *ellipse,
  * Parse a <line> element node.
  */
 
-svgtiny_code svgtiny_parse_line(xmlNode *line,
+svgtiny_code svgtiny_parse_line(Poco::XML::Element *line,
 		struct svgtiny_parse_state state)
 {
 	float x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 	float *p;
-	xmlAttr *attr;
+	//xmlAttr *attr;
+    Poco::XML::Attr *attr;
 
-	for (attr = line->properties; attr; attr = attr->next) {
-		const char *name = (const char *) attr->name;
-		const char *content = (const char *) attr->children->content;
+	//for (attr = line->properties; attr; attr = attr->next) {
+    //for( attr = line->FirstAttribute(); attr; attr = attr->Next() ) {
+    
+    Poco::XML::NamedNodeMap *map = line->attributes();
+    for( int i = 0; i < map->length(); i++ ) {
+    
+		//const char *name = (const char *) attr->name;
+		//const char *content = (const char *) attr->children->content;
+        
+        //const char *name = (const char *) attr->Name();
+		//const char *content = (const char *) attr->Value();
+        
+        const char *name = (const char *) map->item(i)->localName().c_str();
+		const char *content = (const char *) map->item(i)->getNodeValue().c_str();
+        
 		if (strcmp(name, "x1") == 0)
 			x1 = svgtiny_parse_length(content,
 					state.viewport_width, state);
@@ -669,7 +757,7 @@ svgtiny_code svgtiny_parse_line(xmlNode *line,
 	svgtiny_parse_paint_attributes(line, &state);
 	svgtiny_parse_transform_attributes(line, &state);
 
-	p = malloc(7 * sizeof p[0]);
+	p = (float*) malloc(7 * sizeof p[0]);
 	if (!p)
 		return svgtiny_OUT_OF_MEMORY;
 
@@ -692,7 +780,7 @@ svgtiny_code svgtiny_parse_line(xmlNode *line,
  * http://www.w3.org/TR/SVG11/shapes#PolygonElement
  */
 
-svgtiny_code svgtiny_parse_poly(xmlNode *poly,
+svgtiny_code svgtiny_parse_poly(Poco::XML::Element *poly,
 		struct svgtiny_parse_state state, bool polygon)
 {
 	char *s, *points;
@@ -703,18 +791,22 @@ svgtiny_code svgtiny_parse_poly(xmlNode *poly,
 	svgtiny_parse_transform_attributes(poly, &state);
 
 	/* read points attribute */
-	s = points = (char *) xmlGetProp(poly, (const xmlChar *) "points");
+	//s = points = (char *) xmlGetProp(poly, (const xmlChar *) "points");
+    
+    s = points = (char *) poly->getAttribute("points").c_str();
+    
 	if (!s) {
-		state.diagram->error_line = poly->line;
+		//state.diagram->error_line = poly->line;
 		state.diagram->error_message =
 				"polyline/polygon: missing points attribute";
 		return svgtiny_SVG_ERROR;
 	}
 
 	/* allocate space for path: it will never have more elements than s */
-	p = malloc(sizeof p[0] * strlen(s));
+	p = (float*) malloc(sizeof p[0] * strlen(s));
 	if (!p) {
-		xmlFree(points);
+        //xmlFree(points);
+        free(points);
 		return svgtiny_OUT_OF_MEMORY;
 	}
 
@@ -727,7 +819,7 @@ svgtiny_code svgtiny_parse_poly(xmlNode *poly,
 		float x, y;
 		int n;
 
-		if (sscanf(s, "%f %f %n", &x, &y, &n) == 2) {
+		if (sscanf(s, " %f %f%n", &x, &y, &n) == 2) {
 			if (i == 0)
 				p[i++] = svgtiny_PATH_MOVE;
 			else
@@ -742,7 +834,8 @@ svgtiny_code svgtiny_parse_poly(xmlNode *poly,
         if (polygon)
 		p[i++] = svgtiny_PATH_CLOSE;
 
-	xmlFree(points);
+	//xmlFree(points);
+    free(points);
 
 	return svgtiny_add_path(p, i, &state);
 }
@@ -752,12 +845,12 @@ svgtiny_code svgtiny_parse_poly(xmlNode *poly,
  * Parse a <text> or <tspan> element node.
  */
 
-svgtiny_code svgtiny_parse_text(xmlNode *text,
+svgtiny_code svgtiny_parse_text(Poco::XML::Element *text,
 		struct svgtiny_parse_state state)
 {
 	float x, y, width, height;
 	float px, py;
-	xmlNode *child;
+	Poco::XML::Element *child;
 
 	svgtiny_parse_position_attributes(text, state,
 			&x, &y, &width, &height);
@@ -766,29 +859,46 @@ svgtiny_code svgtiny_parse_text(xmlNode *text,
 
 	px = state.ctm.a * x + state.ctm.c * y + state.ctm.e;
 	py = state.ctm.b * x + state.ctm.d * y + state.ctm.f;
+    
 /* 	state.ctm.e = px - state.origin_x; */
 /* 	state.ctm.f = py - state.origin_y; */
 
 	/*struct css_style style = state.style;
 	style.font_size.value.length.value *= state.ctm.a;*/
 
-	for (child = text->children; child; child = child->next) {
+	//for (child = text->children; child; child = child->next) {
+    //for( child = (Poco::XML::Element*) text->FirstChild( false ); child; child = (Poco::XML::Element*) child->NextSibling( false ) ) {
+    
+    
+    Poco::XML::NodeIterator it(text, Poco::XML::NodeFilter::SHOW_ELEMENT | Poco::XML::NodeFilter::SHOW_TEXT);
+    Poco::XML::Node* pNode = it.nextNode();
+    while (pNode) {
+    
 		svgtiny_code code = svgtiny_OK;
 
-		if (child->type == XML_TEXT_NODE) {
+		if (pNode->getNodeValue().compare("text") == 0) 
+        {
 			struct svgtiny_shape *shape = svgtiny_add_shape(&state);
-			if (!shape)
+			
+            if (!shape)
 				return svgtiny_OUT_OF_MEMORY;
-			shape->text = strdup((const char *) child->content);
+            
+			//shape->text = strdup((const char *) child->content);
+            
+            shape->text = strdup((const char *) pNode->getNodeValue().c_str());
+            
 			shape->text_x = px;
 			shape->text_y = py;
 			state.diagram->shape_count++;
 
-		} else if (child->type == XML_ELEMENT_NODE &&
-				strcmp((const char *) child->name,
-					"tspan") == 0) {
+		} 
+        //else if (strcmp((const char *) child->Value(), "tspan") == 0) 
+        else if (pNode->getNodeValue().compare("tspan") == 0) 
+        {
 			code = svgtiny_parse_text(child, state);
 		}
+    
+        pNode = it.nextNode();
 
 		if (!code != svgtiny_OK)
 			return code;
@@ -802,20 +912,32 @@ svgtiny_code svgtiny_parse_text(xmlNode *text,
  * Parse x, y, width, and height attributes, if present.
  */
 
-void svgtiny_parse_position_attributes(const xmlNode *node,
+void svgtiny_parse_position_attributes(const Poco::XML::Element *node,
 		const struct svgtiny_parse_state state,
 		float *x, float *y, float *width, float *height)
 {
-	xmlAttr *attr;
+	//xmlAttr *attr;
+    const Poco::XML::Attr *attr;
 
 	*x = 0;
 	*y = 0;
 	*width = state.viewport_width;
 	*height = state.viewport_height;
 
-	for (attr = node->properties; attr; attr = attr->next) {
-		const char *name = (const char *) attr->name;
-		const char *content = (const char *) attr->children->content;
+	//for (attr = node->properties; attr; attr = attr->next) {
+    //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
+    Poco::XML::NamedNodeMap *map = node->attributes();
+    //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
+    for( int i = 0; i < map->length(); i++ ) {
+    
+    
+		//const char *name = (const char *) attr->name;
+		//const char *content = (const char *) attr->children->content;
+        
+        // good god this is ugly
+        const char *name = (const char *) map->item(i)->localName().c_str();
+		const char *content = (const char *) map->item(i)->getNodeValue().c_str();
+        
 		if (strcmp(name, "x") == 0)
 			*x = svgtiny_parse_length(content,
 					state.viewport_width, state);
@@ -876,14 +998,27 @@ float svgtiny_parse_length(const char *s, int viewport_size,
  * Parse paint attributes, if present.
  */
 
-void svgtiny_parse_paint_attributes(const xmlNode *node,
+void svgtiny_parse_paint_attributes(const Poco::XML::Element *node,
 		struct svgtiny_parse_state *state)
 {
-	const xmlAttr *attr;
+	//const xmlAttr *attr;
+    const Poco::XML::Attr *attr;
 
-	for (attr = node->properties; attr; attr = attr->next) {
-		const char *name = (const char *) attr->name;
-		const char *content = (const char *) attr->children->content;
+	//for (attr = node->properties; attr; attr = attr->next) {
+    
+    //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
+    Poco::XML::NamedNodeMap *map = node->attributes();
+    for( int i = 0; i < map->length(); i++ ) {
+    
+		//const char *name = (const char *) attr->name;
+		//const char *content = (const char *) attr->children->content;
+        
+        //const char *name = (const char *) attr->Name();
+		//const char *content = (const char *) attr->Value();
+        
+        const char *name = (const char *) map->item(i)->localName().c_str();
+		const char *content = (const char *) map->item(i)->getNodeValue().c_str();
+        
 		if (strcmp(name, "fill") == 0)
 			svgtiny_parse_color(content, &state->fill, state);
 		else if (strcmp(name, "stroke") == 0)
@@ -892,8 +1027,10 @@ void svgtiny_parse_paint_attributes(const xmlNode *node,
 			state->stroke_width = svgtiny_parse_length(content,
 					state->viewport_width, *state);
 		else if (strcmp(name, "style") == 0) {
-			const char *style = (const char *)
-					attr->children->content;
+			//const char *style = (const char *) attr->children->content;
+            
+            const char *style = attr->getValue().c_str();
+            
 			const char *s;
 			char *value;
 			if ((s = strstr(style, "fill:"))) {
@@ -994,24 +1131,36 @@ void svgtiny_parse_color(const char *s, svgtiny_colour *c,
  * Parse font attributes, if present.
  */
 
-void svgtiny_parse_font_attributes(const xmlNode *node,
+void svgtiny_parse_font_attributes(const Poco::XML::Element *node,
 		struct svgtiny_parse_state *state)
 {
-	const xmlAttr *attr;
+	//const xmlAttr *attr;
+    const Poco::XML::Attr *attr;
 
 	UNUSED(state);
 
-	for (attr = node->properties; attr; attr = attr->next) {
-		if (strcmp((const char *) attr->name, "font-size") == 0) {
-			/*if (css_parse_length(
+	// todo: add back in the font attribute parsing
+	//for (attr = node->properties; attr; attr = attr->next) {
+        
+		/*if (strcmp((const char *) attr->Name(), "font-size") == 0) {
+			if (css_parse_length(
 					(const char *) attr->children->content,
 					&state->style.font_size.value.length,
 					true, true)) {
 				state->style.font_size.size =
 						CSS_FONT_SIZE_LENGTH;
 			}*/
-		}
-        }
+    
+        //if (node->Attribute("font-size")) {
+        //    if (css_parse_length( (const char *) node->Value(), &state->style.font_size.value.length, true, true)) 
+        //    {
+        //        state->style.font_size.size = CSS_FONT_SIZE_LENGTH;
+        //    }
+        //}
+    
+    
+		//}
+    //}
 }
 
 
@@ -1021,18 +1170,22 @@ void svgtiny_parse_font_attributes(const xmlNode *node,
  * http://www.w3.org/TR/SVG11/coords#TransformAttribute
  */
 
-void svgtiny_parse_transform_attributes(xmlNode *node,
+void svgtiny_parse_transform_attributes(Poco::XML::Element *node,
 		struct svgtiny_parse_state *state)
 {
 	char *transform;
 
 	/* parse transform */
-	transform = (char *) xmlGetProp(node, (const xmlChar *) "transform");
+	//transform = (char *) xmlGetProp(node, (const xmlChar *) "transform");
+    
+    transform = (char *) node->getChildElement("transform");
+    
 	if (transform) {
 		svgtiny_parse_transform(transform, &state->ctm.a, &state->ctm.b,
 				&state->ctm.c, &state->ctm.d,
 				&state->ctm.e, &state->ctm.f);
-		xmlFree(transform);
+		//xmlFree(transform);
+        free(transform);
 	}
 }
 
@@ -1058,22 +1211,22 @@ void svgtiny_parse_transform(char *s, float *ma, float *mb,
 		a = d = 1;
 		b = c = 0;
 		e = f = 0;
-		if (sscanf(s, "matrix (%f %f %f %f %f %f) %n",
+		if (sscanf(s, " matrix (%f %f %f %f %f %f)%n",
 					&a, &b, &c, &d, &e, &f, &n) == 6)
 			;
-		else if (sscanf(s, "translate (%f %f) %n",
+		else if (sscanf(s, " translate (%f %f)%n",
 					&e, &f, &n) == 2)
 			;
-		else if (sscanf(s, "translate (%f) %n",
+		else if (sscanf(s, " translate (%f)%n",
 					&e, &n) == 1)
 			;
-		else if (sscanf(s, "scale (%f %f) %n",
+		else if (sscanf(s, " scale (%f %f)%n",
 					&a, &d, &n) == 2)
 			;
-		else if (sscanf(s, "scale (%f) %n",
+		else if (sscanf(s, " scale (%f)%n",
 					&a, &n) == 1)
 			d = a;
-		else if (sscanf(s, "rotate (%f %f %f) %n",
+		else if (sscanf(s, " rotate (%f %f %f)%n",
 					&angle, &x, &y, &n) == 3) {
 			angle = angle / 180 * M_PI;
 			a = cos(angle);
@@ -1082,18 +1235,18 @@ void svgtiny_parse_transform(char *s, float *ma, float *mb,
 			d = cos(angle);
 			e = -x * cos(angle) + y * sin(angle) + x;
 			f = -x * sin(angle) - y * cos(angle) + y;
-		} else if (sscanf(s, "rotate (%f) %n",
+		} else if (sscanf(s, " rotate (%f)%n",
 					&angle, &n) == 1) {
 			angle = angle / 180 * M_PI;
 			a = cos(angle);
 			b = sin(angle);
 			c = -sin(angle);
 			d = cos(angle);
-		} else if (sscanf(s, "skewX (%f) %n",
+		} else if (sscanf(s, " skewX (%f)%n",
 					&angle, &n) == 1) {
 			angle = angle / 180 * M_PI;
 			c = tan(angle);
-		} else if (sscanf(s, "skewY (%f) %n",
+		} else if (sscanf(s, " skewY (%f)%n",
 					&angle, &n) == 1) {
 			angle = angle / 180 * M_PI;
 			b = tan(angle);
@@ -1149,9 +1302,8 @@ svgtiny_code svgtiny_add_path(float *p, unsigned int n,
 
 struct svgtiny_shape *svgtiny_add_shape(struct svgtiny_parse_state *state)
 {
-	struct svgtiny_shape *shape = realloc(state->diagram->shape,
-			(state->diagram->shape_count + 1) *
-			sizeof (state->diagram->shape[0]));
+	struct svgtiny_shape *shape = (svgtiny_shape *) realloc(state->diagram->shape,
+			(state->diagram->shape_count + 1) * sizeof (state->diagram->shape[0]));
 	if (!shape)
 		return 0;
 	state->diagram->shape = shape;
@@ -1240,7 +1392,7 @@ char *svgtiny_strndup(const char *s, size_t n)
 	for (len = 0; len != n && s[len]; len++)
 		continue;
 
-	s2 = malloc(len + 1);
+	s2 = (char*) malloc(len + 1);
 	if (s2 == NULL)
 		return NULL;
 

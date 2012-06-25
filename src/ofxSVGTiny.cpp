@@ -54,9 +54,9 @@ void ofxSVGTiny::draw()
 	}
 }
 
-
 void ofxSVGTiny::setupDiagram(struct svgtiny_diagram *diagram)
 {
+	width = diagram->width, height = diagram->height;
 	for (int i = 0; i < diagram->shape_count; i++)
 	{
 		if (diagram->shape[i].path)
