@@ -1027,9 +1027,7 @@ void svgtiny_parse_paint_attributes(const Poco::XML::Element *node,
 			state->stroke_width = svgtiny_parse_length(content,
 					state->viewport_width, *state);
 		else if (strcmp(name, "style") == 0) {
-			//const char *style = (const char *) attr->children->content;
-            
-            const char *style = attr->getValue().c_str();
+            const char *style = content;
             
 			const char *s;
 			char *value;
