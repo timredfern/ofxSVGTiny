@@ -48,7 +48,7 @@ void ofxSVGTiny::load(string path)
 
 void ofxSVGTiny::draw()
 {
-	for (int i = 0; i < paths.size(); i++)
+	for (unsigned int i = 0; i < paths.size(); i++)
 	{
 		paths[i]->draw();
 	}
@@ -56,8 +56,10 @@ void ofxSVGTiny::draw()
 
 void ofxSVGTiny::setupDiagram(struct svgtiny_diagram *diagram)
 {
-	width = diagram->width, height = diagram->height;
-	for (int i = 0; i < diagram->shape_count; i++)
+	width = diagram->width;
+	height = diagram->height;
+	
+	for (unsigned int i = 0; i < diagram->shape_count; i++)
 	{
 		if (diagram->shape[i].path)
 		{
@@ -91,7 +93,7 @@ void ofxSVGTiny::setupShape(struct svgtiny_shape *shape)
 		path->setStrokeHexColor(shape->stroke);
 	}
 	
-	for (int i = 0; i < shape->path_length;)
+	for (unsigned int i = 0; i < shape->path_length;)
 	{
 		if (p[i] == svgtiny_PATH_MOVE)
 		{
