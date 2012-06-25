@@ -10,6 +10,8 @@
 *.app*
 *.DS_*
 *.xcworkspacedata
+xcuserdata
+DerivedData
 
 .svn/
 obj/

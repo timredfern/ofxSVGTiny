@@ -16,17 +16,17 @@
     <ClCompile Include="..\src\ofxSVGTiny.cpp">
       <Filter>addons\ofxSVGTiny\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\lib\src_colors.cpp">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClCompile Include="..\libs\src_colors.cpp">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClCompile>
-    <ClCompile Include="..\lib\svgtiny_gradient.cpp">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClCompile Include="..\libs\svgtiny_gradient.cpp">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClCompile>
-    <ClCompile Include="..\lib\svgtiny_list.cpp">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClCompile Include="..\libs\svgtiny_list.cpp">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClCompile>
-    <ClCompile Include="..\lib\svgtiny.cpp">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClCompile Include="..\libs\svgtiny.cpp">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -42,7 +42,7 @@
     <Filter Include="addons\ofxSVGTiny\src">
       <UniqueIdentifier>{746a99df-c129-498e-83ec-d385592158eb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="addons\ofxSVGTiny\lib">
+    <Filter Include="addons\ofxSVGTiny\libs">
       <UniqueIdentifier>{e67bc8e7-66cb-4c33-ae9c-d4f66a18f314}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -56,11 +56,11 @@
     <ClInclude Include="..\src\ofxSVGTiny.h">
       <Filter>addons\ofxSVGTiny\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\lib\svgtiny_internal.h">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClInclude Include="..\libs\svgtiny_internal.h">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClInclude>
-    <ClInclude Include="..\lib\svgtiny.h">
-      <Filter>addons\ofxSVGTiny\lib</Filter>
+    <ClInclude Include="..\libs\svgtiny.h">
+      <Filter>addons\ofxSVGTiny\libs</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
