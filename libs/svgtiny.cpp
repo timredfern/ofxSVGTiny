@@ -547,7 +547,7 @@ svgtiny_code svgtiny_parse_circle(Poco::XML::Element *circle,
     //for( attr = circle->FirstAttribute(); attr; attr = attr->Next() ) {
     
     Poco::XML::NamedNodeMap *map = circle->attributes();
-    for( int i = 0; i < map->length(); i++ ) {
+    for( unsigned int i = 0; i < map->length(); i++ ) {
     
 		//const char *name = (const char *) attr->name;
 		//const char *content = (const char *) attr->children->content;
@@ -637,7 +637,7 @@ svgtiny_code svgtiny_parse_ellipse(Poco::XML::Element *ellipse,
     //for( attr = ellipse->FirstAttribute(); attr; attr = attr->Next() ) {
     
     Poco::XML::NamedNodeMap *map = ellipse->attributes();
-    for( int i = 0; i < map->length(); i++ ) {
+    for(unsigned int i = 0; i < map->length(); i++ ) {
     
 		//const char *name = (const char *) attr->name;
 		//const char *content = (const char *) attr->children->content;
@@ -730,7 +730,7 @@ svgtiny_code svgtiny_parse_line(Poco::XML::Element *line,
     //for( attr = line->FirstAttribute(); attr; attr = attr->Next() ) {
     
     Poco::XML::NamedNodeMap *map = line->attributes();
-    for( int i = 0; i < map->length(); i++ ) {
+    for(unsigned int i = 0; i < map->length(); i++ ) {
     
 		//const char *name = (const char *) attr->name;
 		//const char *content = (const char *) attr->children->content;
@@ -928,7 +928,7 @@ void svgtiny_parse_position_attributes(const Poco::XML::Element *node,
     //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
     Poco::XML::NamedNodeMap *map = node->attributes();
     //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
-    for( int i = 0; i < map->length(); i++ ) {
+    for(unsigned int i = 0; i < map->length(); i++ ) {
     
     
 		//const char *name = (const char *) attr->name;
@@ -1008,7 +1008,7 @@ void svgtiny_parse_paint_attributes(const Poco::XML::Element *node,
     
     //for( attr = node->FirstAttribute(); attr; attr = attr->Next() ) {
     Poco::XML::NamedNodeMap *map = node->attributes();
-    for( int i = 0; i < map->length(); i++ ) {
+    for(unsigned int i = 0; i < map->length(); i++ ) {
     
 		//const char *name = (const char *) attr->name;
 		//const char *content = (const char *) attr->children->content;

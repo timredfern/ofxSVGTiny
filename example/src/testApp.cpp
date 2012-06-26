@@ -42,7 +42,7 @@ void testApp::draw()
 			
 			vector<ofPolyline>& lines = p.getOutline();
 			
-			for (int k = 0; k < lines.size(); k++)
+			for (unsigned int k = 0; k < lines.size(); k++)
 			{
 				ofPolyline line = lines[k].getResampledBySpacing(1);
 				

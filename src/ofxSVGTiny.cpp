@@ -125,3 +125,4 @@ void ofxSVGTiny::setupShape(struct svgtiny_shape *shape)
 		}
 	}
 }
+
