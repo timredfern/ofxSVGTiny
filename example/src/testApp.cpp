@@ -1,9 +1,5 @@
 #include "testApp.h"
 
-#include "ofxSVGTiny.h"
-
-ofxSVGTiny svg;
-
 //--------------------------------------------------------------
 void testApp::setup()
 {
@@ -13,7 +9,7 @@ void testApp::setup()
 	ofBackground(0);
 	ofSetColor(255);
 	
-	svg.load("tiger.svg");
+	svg.load("tiger.svg"); // works
 }
 
 float step;
@@ -37,7 +33,7 @@ void testApp::draw()
 	ofRotate(mouseX);
 	float scale = ofMap(mouseY, 0, ofGetHeight(), .5, 10);
 	ofScale(scale, scale, scale);
-	ofTranslate(-250, -250);
+	ofTranslate(-svg.getWidth() / 2, -svg.getHeight() / 2);
 	if(ofGetMousePressed()) {
 		
 		for (int i = 0; i < svg.getNumPath(); i++)
@@ -119,5 +115,4 @@ void testApp::gotMessage(ofMessage msg)
 //--------------------------------------------------------------
 void testApp::dragEvent(ofDragInfo dragInfo)
 {
-	
 }

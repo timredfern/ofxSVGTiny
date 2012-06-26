@@ -1,11 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
-
-extern "C"
-{
 #include "svgtiny.h"
-};
 
 class ofxSVGTiny
 {
@@ -16,21 +12,18 @@ public:
 	void load(string path);
 	void draw();
 	
+	float getWidth() const { return width; }
+	float getHeight() const { return height; }
 	int getNumPath() { return paths.size(); }
 	ofPath& getPathAt(int n) { return *paths[n]; }
 
-  float getWidth() const;
-  float getHeight() const;
-
 private:
+	float width, height;
 
 	typedef ofPtr<ofPath> ofPathRef;
 	vector<ofPathRef> paths;
 
 	void setupDiagram(struct svgtiny_diagram *diagram);
 	void setupShape(struct svgtiny_shape *shape);
-
-  float width;
-  float height;
 
 };

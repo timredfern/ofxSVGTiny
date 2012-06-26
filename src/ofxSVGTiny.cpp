@@ -54,11 +54,11 @@ void ofxSVGTiny::draw()
 	}
 }
 
-
 void ofxSVGTiny::setupDiagram(struct svgtiny_diagram *diagram)
 {
-  width = diagram->width;
-  height = diagram->height;
+	width = diagram->width;
+	height = diagram->height;
+	
 	for (unsigned int i = 0; i < diagram->shape_count; i++)
 	{
 		if (diagram->shape[i].path)
@@ -124,13 +124,5 @@ void ofxSVGTiny::setupShape(struct svgtiny_shape *shape)
 			i += 1;
 		}
 	}
-}
-
-float ofxSVGTiny::getWidth() const{
-  return width;
-}
-
-float ofxSVGTiny::getHeight() const{
-  return height;
 }
 

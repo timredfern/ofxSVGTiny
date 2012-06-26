@@ -1,4 +1,7 @@
-example-pulse/
+*.opensdf
+*.suo
+*.sdf
+*.ipch
 
 *.depend
 *.layout
@@ -7,6 +10,8 @@ example-pulse/
 *.app*
 *.DS_*
 *.xcworkspacedata
+xcuserdata
+DerivedData
 
 .svn/
 obj/
